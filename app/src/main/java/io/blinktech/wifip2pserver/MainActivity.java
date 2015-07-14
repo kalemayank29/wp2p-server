@@ -11,17 +11,35 @@ import android.net.wifi.p2p.WifiP2pDeviceList;
 import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pInfo;
 import android.net.wifi.p2p.WifiP2pManager;
+import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
+import android.widget.Toast;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.http.NameValuePair;
+import org.apache.http.message.BasicNameValuePair;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
+import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.sql.Connection;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.sql.ConnectionEventListener;
 
@@ -32,7 +50,7 @@ public class MainActivity extends AppCompatActivity implements WifiP2pManager.Pe
     MyBroadcastReceiver mReceiver;
     public  static final String TAG = "log";
     IntentFilter mIntentFilter;
-
+    Button button;
     public List peers = new ArrayList();
 
     @Override
@@ -63,7 +81,7 @@ public class MainActivity extends AppCompatActivity implements WifiP2pManager.Pe
         mIntentFilter.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
         mIntentFilter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
 
-
+/*
         mManager.discoverPeers(mChannel, new WifiP2pManager.ActionListener() {
             @Override
             public void onSuccess() {
@@ -73,6 +91,14 @@ public class MainActivity extends AppCompatActivity implements WifiP2pManager.Pe
             @Override
             public void onFailure(int i) {
                 Log.println(Log.ASSERT,TAG,"Discovery process failed");
+            }
+        });*/
+
+        button = (Button) findViewById(R.id.button);
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                deletePersistentGroups();
             }
         });
 
@@ -128,8 +154,22 @@ public class MainActivity extends AppCompatActivity implements WifiP2pManager.Pe
         else {
             Log.println(Log.ASSERT,TAG,String.valueOf(peers.size())+" Devices found");
         }
+        ///connect()
+        //;
 
-        mManager.requestGroupInfo(mChannel, new WifiP2pManager.GroupInfoListener() {
+        mManager.createGroup(mChannel, new WifiP2pManager.ActionListener() {
+            @Override
+            public void onSuccess() {
+                Log.println(Log.ASSERT, TAG, "Group created");
+            }
+
+            @Override
+            public void onFailure(int i) {
+                Log.println(Log.ASSERT, TAG, "Group creation failed");
+            }
+        });
+
+       /* mManager.requestGroupInfo(mChannel, new WifiP2pManager.GroupInfoListener() {
             @Override
             public void onGroupInfoAvailable(WifiP2pGroup wifiP2pGroup) {
                 if(wifiP2pGroup != null)
@@ -174,7 +214,7 @@ public class MainActivity extends AppCompatActivity implements WifiP2pManager.Pe
                 }
 
             }
-        });
+        });*/
        /*
         mManager.createGroup(mChannel, new WifiP2pManager.ActionListener() {
             @Override
@@ -220,12 +260,30 @@ public class MainActivity extends AppCompatActivity implements WifiP2pManager.Pe
         if(info.groupFormed && info.isGroupOwner) {
             Log.println(Log.ASSERT, TAG, "This is group owner");
             Log.println(Log.ASSERT, TAG, groupOwnerAddress.getHostAddress());
-            deletePersistentGroups();
+
+
+           /* mManager.stopPeerDiscovery(mChannel, new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    Log.e("Peer discovery stopped", "Here");
+                }
+
+                @Override
+                public void onFailure(int i) {
+                    Log.e("Still discovering",String.valueOf(i));
+
+                }
+            });*/
+
+            //deletePersistentGroups();
             try {
-                Thread.sleep(9000);
+                Thread.sleep(2000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+            //deletePersistentGroups();
+
+            new FileServerAsyncTask(this.getApplicationContext(),mManager,mChannel,this).execute();
         }
             else if(!info.isGroupOwner){
             Log.println(Log.ASSERT, TAG, "Is not the group owner");
@@ -234,10 +292,19 @@ public class MainActivity extends AppCompatActivity implements WifiP2pManager.Pe
 
     @Override
     public void onGroupInfoAvailable(WifiP2pGroup group){
-        connect();
+
+       /* try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }*/
+
+        //
+        // connect();
+                Log.println(Log.ASSERT,TAG,group.toString());
     }
 
-    private void deletePersistentGroups(){
+    public void deletePersistentGroups(){
         try {
             Method[] methods = WifiP2pManager.class.getMethods();
 
@@ -251,6 +318,113 @@ public class MainActivity extends AppCompatActivity implements WifiP2pManager.Pe
             }
         } catch(Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    public static class FileServerAsyncTask extends AsyncTask<Object, Void, String> {
+
+
+        private Context context;
+        private WifiP2pManager mManager;
+        private WifiP2pManager.Channel mChannel;
+        private MainActivity mActivity;
+
+        public FileServerAsyncTask(Context context, WifiP2pManager mManager, WifiP2pManager.Channel mChannel, MainActivity mActivity) {
+            this.context = context;
+            this.mManager = mManager;
+            this.mChannel = mChannel;
+            this.mActivity = mActivity;
+        }
+
+        @Override
+        protected String doInBackground(Object[] objects) {
+            Log.println(Log.ASSERT,"log","Its here");
+            ServerSocket serverSocket = null;
+            try {
+
+                serverSocket = new ServerSocket(8888);
+                Socket client = serverSocket.accept();
+
+                Log.e("Inside","try");
+
+
+                InputStream inputstream = client.getInputStream();
+                byte[] buffer = IOUtils.toByteArray(inputstream);
+                ByteArrayInputStream bInStream = new ByteArrayInputStream(buffer);
+                ObjectInput in = null;
+
+                try {
+                    in = new ObjectInputStream(bInStream);
+                    HashMap<String, String> element = (HashMap<String, String>) in.readObject();
+                    ArrayList<NameValuePair> parameters = new ArrayList<NameValuePair>();
+                    for (Map.Entry<String, String> entry:element.entrySet()
+                         ) {
+                        parameters.add(new BasicNameValuePair(entry.getKey(),entry.getValue()));
+
+                    }
+                    Log.println(Log.ASSERT,parameters.get(0).getName(),parameters.get(0).getValue());
+                    Log.println(Log.ASSERT,parameters.get(1).getName(),parameters.get(1).getValue());
+
+
+                    //Log.println(Log.ASSERT,"Element: ", String.valueOf(element.get("Mayank")));
+                    //List<String> list = new ArrayList<String>(element.keySet());
+                    //Log.println(Log.ASSERT,TAG,list.get(1));
+
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                }
+
+                //String data = new String(buffer, "UTF-8");
+                //Log.println(Log.ASSERT, "DATA: ", data);
+
+                //Toast.makeText(context,data, Toast.LENGTH_LONG).show();
+                serverSocket.close();
+                return "Data Stream closed";
+            }
+            catch(IOException e){
+                e.printStackTrace();
+                return "In Catch";
+            }
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            Log.e("In","Post Execute");
+            Log.e("RESULT",result);
+           // MyApplication.count++;
+            //super.onPostExecute(result);
+            //FileServerAsyncTask myTast = new FileServerAsyncTask(context);
+            Toast.makeText(context, "Data Transfer successful" + result, Toast.LENGTH_LONG).show();
+
+            mManager.removeGroup(mChannel, new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    Log.e("Group","Removed");
+                }
+
+                @Override
+                public void onFailure(int i) {
+                    Log.e("Group not removed","no");
+
+                }
+            });
+            mManager.stopPeerDiscovery(mChannel, new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    Log.e("Peer discovery stopped", "Here");
+                }
+
+                @Override
+                public void onFailure(int i) {
+                    Log.e("Still discovering",String.valueOf(i));
+
+                }
+            });
+            mActivity.deletePersistentGroups();
+           // Intent intent = new Intent(context,Main2Activity.class);
+            //intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            // intent.setAction(android.content.Intent.ACTION_VIEW);
+            //this.context.startActivity(intent);
         }
     }
 }

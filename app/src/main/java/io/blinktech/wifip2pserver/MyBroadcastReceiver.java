@@ -77,39 +77,17 @@ public class MyBroadcastReceiver extends BroadcastReceiver {
             if(mManager == null) return;
             NetworkInfo networkInfo = (NetworkInfo) intent.getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO);
 
-            if(networkInfo.isConnected()){
-                mManager.requestConnectionInfo(mChannel,mActivity);
+            if(networkInfo.isConnected()) {
+                Log.println(Log.ASSERT,TAG,networkInfo.getState().toString());
+                mManager.requestConnectionInfo(mChannel, mActivity);
             }
         }
 
         else if(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION.equals(action)){
             // Respond to this devices WiFi state change
+
         }
     }
 
-
-
-   /* @Override
-    public void connect(){
-        WifiP2pDevice device = (WifiP2pDevice) peers.get(0);
-
-        WifiP2pConfig config = new WifiP2pConfig();
-        config.deviceAddress = device.deviceAddress;
-        config.wps.setup = WpsInfo.PBC;
-        config.groupOwnerIntent = 15;
-
-        mManager.connect(mChannel, config, new WifiP2pManager.ActionListener() {
-            @Override
-            public void onSuccess() {
-
-            }
-
-            @Override
-            public void onFailure(int i) {
-                // Toast.makeText(MainActivity.this, "Connect Failed", Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-*/
 
 }
