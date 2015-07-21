@@ -328,6 +328,7 @@ public class MainActivity extends AppCompatActivity implements WifiP2pManager.Pe
         private WifiP2pManager mManager;
         private WifiP2pManager.Channel mChannel;
         private MainActivity mActivity;
+        private ArrayList<HashMap<String,String>> drugMap;
 
         public FileServerAsyncTask(Context context, WifiP2pManager mManager, WifiP2pManager.Channel mChannel, MainActivity mActivity) {
             this.context = context;
@@ -355,15 +356,28 @@ public class MainActivity extends AppCompatActivity implements WifiP2pManager.Pe
 
                 try {
                     in = new ObjectInputStream(bInStream);
-                    HashMap<String, String> element = (HashMap<String, String>) in.readObject();
+                    drugMap = (ArrayList<HashMap<String,String>>) in.readObject();
+                            //new ArrayList<HashMap<String, String>>();
+                  // ArrayList<HashMap<String,String>>  temp =
+                   // element.addAll();
+                   // Log.println(Log.ASSERT,TAG,String.valueOf(element.get(0).get("Kyle")));
                     ArrayList<NameValuePair> parameters = new ArrayList<NameValuePair>();
-                    for (Map.Entry<String, String> entry:element.entrySet()
+
+                    Log.println(Log.ASSERT,TAG,String.valueOf(drugMap.size()));
+
+                   /* for (Map.Entry<String, String> entry:element.entrySet()
                          ) {
                         parameters.add(new BasicNameValuePair(entry.getKey(),entry.getValue()));
 
-                    }
-                    Log.println(Log.ASSERT,parameters.get(0).getName(),parameters.get(0).getValue());
-                    Log.println(Log.ASSERT,parameters.get(1).getName(),parameters.get(1).getValue());
+                    }*/
+                    //for(int i=0;i<parameters.size();i++){
+                        //Log.println(Log.ASSERT,parameters.get(i).getName(),parameters.get(i).getValue());
+                        //Log.println(Log.ASSERT, "log", element.get(0).get("Kyle"));
+                   // Log.println(Log.ASSERT,"log",element.get(1).get("Mayank"));
+
+                  //  }
+
+//                    Log.println(Log.ASSERT,parameters.get(1).getName(),parameters.get(1).getValue());
 
 
                     //Log.println(Log.ASSERT,"Element: ", String.valueOf(element.get("Mayank")));
@@ -389,12 +403,12 @@ public class MainActivity extends AppCompatActivity implements WifiP2pManager.Pe
 
         @Override
         protected void onPostExecute(String result) {
-            Log.e("In","Post Execute");
+            Log.e("In", "Post Execute");
             Log.e("RESULT",result);
            // MyApplication.count++;
             //super.onPostExecute(result);
             //FileServerAsyncTask myTast = new FileServerAsyncTask(context);
-            Toast.makeText(context, "Data Transfer successful" + result, Toast.LENGTH_LONG).show();
+            //Toast.makeText(context, "Data Transfer successful" + result, Toast.LENGTH_LONG).show();
 
             mManager.removeGroup(mChannel, new WifiP2pManager.ActionListener() {
                 @Override
@@ -421,10 +435,17 @@ public class MainActivity extends AppCompatActivity implements WifiP2pManager.Pe
                 }
             });
             mActivity.deletePersistentGroups();
-           // Intent intent = new Intent(context,Main2Activity.class);
-            //intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            // intent.setAction(android.content.Intent.ACTION_VIEW);
-            //this.context.startActivity(intent);
+
+            Bundle bundle = new Bundle();
+            bundle.putSerializable("map",drugMap);
+            Intent intent = new Intent(mActivity, Main2Activity.class);
+            intent.putExtras(bundle);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.setAction(android.content.Intent.ACTION_VIEW);
+            this.context.startActivity(intent);
+           // this.context.startActivity(intent);
+
+
         }
     }
 }
